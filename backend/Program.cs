@@ -10,7 +10,7 @@ builder.Services.AddSwaggerGen();
 
 // Configure DbContext
 builder.Services.AddDbContext<LibraryContext>(options =>
-    options.UseSqlite("Data Source=library.db"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure CORS
 builder.Services.AddCors(options =>
