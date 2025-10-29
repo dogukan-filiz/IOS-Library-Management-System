@@ -1,8 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/statistic_card.dart';
+import '../services/user_service.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final UserService _userService = UserService();
+  UserDashboardData? _dashboardData;
+  bool _isLoading = true;
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+    final firstName = prefs.getString('userFirstName') ?? '';
+    final lastName = prefs.getString('userLastName') ?? '';
+    
+    setState(() {
+      _userName = '$firstName $lastName';
+    });
+
+    if (userId != null) {
+      try {
+        final data = await _userService.getUserDashboard(userId);
+        setState(() {
+          _dashboardData = data;
+          _isLoading = false;
+        });
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,17 +115,17 @@ class DashboardScreen extends StatelessWidget {
             child: Icon(Icons.person, color: Colors.blue),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Hoş Geldin,',
                   style: TextStyle(color: Colors.white70),
                 ),
                 Text(
-                  'Kullanıcı Adı',
-                  style: TextStyle(
+                  _userName ?? 'Yükleniyor...',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -83,35 +134,9 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
           ),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications, color: Colors.white),
-                onPressed: () {},
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Text(
-                    '2',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {},
+            onPressed: _logout,
           ),
         ],
       ),
@@ -119,6 +144,10 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildStatisticsSection() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -129,26 +158,24 @@ class DashboardScreen extends StatelessWidget {
         StatisticCard(
           icon: Icons.book,
           title: 'Kiralık Kitaplar',
-          value: '3',
-          color: Colors.blue,
+          value: '${_dashboardData?.activeRentalCount ?? 0}',
+          color: _dashboardData != null && _dashboardData!.activeRentalCount >= 3 
+              ? Colors.red 
+              : Colors.blue,
         ),
         StatisticCard(
           icon: Icons.chair,
-          title: 'Aktif Rezervasyonlar',
-          value: '1',
-          color: Colors.green,
+          title: 'Aktif Rezervasyon',
+          value: _dashboardData?.activeSeatNumber ?? 'Yok',
+          color: _dashboardData?.activeSeatNumber != null 
+              ? Colors.green 
+              : Colors.red,
         ),
         StatisticCard(
           icon: Icons.auto_stories,
           title: 'Okunan Kitaplar',
-          value: '15',
+          value: '${_dashboardData?.totalBooksRead ?? 0}',
           color: Colors.orange,
-        ),
-        StatisticCard(
-          icon: Icons.timer,
-          title: 'Çalışma Süresi',
-          value: '45 saat',
-          color: Colors.purple,
         ),
       ],
     );
