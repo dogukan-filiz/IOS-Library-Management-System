@@ -1,15 +1,15 @@
 {
   "format": 1,
   "restore": {
-    "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryAPI.csproj": {}
+    "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryApi.csproj": {}
   },
   "projects": {
-    "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryAPI.csproj": {
+    "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryAPI.csproj",
-        "projectName": "LibraryAPI",
-        "projectPath": "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryAPI.csproj",
+        "projectUniqueName": "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryApi.csproj",
+        "projectName": "LibraryApi",
+        "projectPath": "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/LibraryApi.csproj",
         "packagesPath": "/Users/dogukanfiliz/.nuget/packages/",
         "outputPath": "/Users/dogukanfiliz/Documents/GitHub/IOS-Library-Management-System/backend/obj/",
         "projectStyle": "PackageReference",

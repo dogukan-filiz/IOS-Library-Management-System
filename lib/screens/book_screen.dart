@@ -13,9 +13,11 @@ class _BookScreenState extends State<BookScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => context.read<BookProvider>().fetchBooks(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<BookProvider>().fetchBooks();
+      }
+    });
   }
 
   @override

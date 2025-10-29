@@ -6,6 +6,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/book_screen.dart';
 import 'screens/seat_screen.dart';
 
+// Library Management System
 void main() {
   runApp(const MyApp());
 }
