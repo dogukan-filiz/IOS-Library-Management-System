@@ -5,6 +5,7 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/book_screen.dart';
 import 'screens/seat_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
 
 // Library Management System
 void main() {
@@ -32,6 +33,7 @@ class MyApp extends StatelessWidget {
           '/dashboard': (context) => const DashboardScreen(),
           '/books': (context) => const BookScreen(),
           '/seats': (context) => const SeatScreen(),
+          '/admin': (context) => const AdminDashboardScreen(),
         },
       ),
     );

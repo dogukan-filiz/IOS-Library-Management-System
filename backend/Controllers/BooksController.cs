@@ -107,6 +107,35 @@ namespace LibraryAPI.Controllers
             return NoContent();
         }
 
+        // GET: api/books/search?query=term
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<Book>>> SearchBooks([FromQuery] string query)
+        {
+            _logger.LogInformation("Searching books with query: {Query}", query);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(query))
+                {
+                    return await GetBooks();
+                }
+
+                var books = await _context.Books
+                    .Where(b => 
+                        b.Title.ToLower().Contains(query.ToLower()) ||
+                        b.Author.ToLower().Contains(query.ToLower()) ||
+                        (b.Category != null && b.Category.ToLower().Contains(query.ToLower())))
+                    .ToListAsync();
+
+                _logger.LogInformation($"Found {books.Count} books matching query: {query}");
+                return Ok(books);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching books");
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
         private bool BookExists(int id)
         {
             return _context.Books.Any(e => e.Id == id);

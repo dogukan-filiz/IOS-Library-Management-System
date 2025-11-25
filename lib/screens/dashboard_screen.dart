@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../widgets/statistic_card.dart';
 import '../services/user_service.dart';
+import 'book_screen.dart';
+import 'seat_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,347 +14,367 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final UserService _userService = UserService();
-  UserDashboardData? _dashboardData;
+  int _currentIndex = 0;
+  String _userName = '';
+  int? _userId;
+  String? _userRole;
+  Map<String, dynamic>? _stats;
   bool _isLoading = true;
-  String? _userName;
 
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    _loadUserData();
   }
 
-  Future<void> _loadDashboardData() async {
+  Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('userId');
     final firstName = prefs.getString('userFirstName') ?? '';
     final lastName = prefs.getString('userLastName') ?? '';
-    
+    final role = prefs.getString('userRole') ?? 'User';
+
     setState(() {
       _userName = '$firstName $lastName';
+      _userId = userId;
+      _userRole = role;
     });
 
     if (userId != null) {
-      try {
-        final data = await _userService.getUserDashboard(userId);
-        setState(() {
-          _dashboardData = data;
-          _isLoading = false;
-        });
-      } catch (e) {
-        setState(() {
-          _isLoading = false;
-        });
+      await _loadStats(userId);
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadStats(int userId) async {
+    try {
+      final stats = await _userService.getUserStats(userId);
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('İstatistikler yüklenemedi: $e')),
+        );
       }
     }
   }
 
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
+  Widget _buildHomeScreen() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_userId != null) {
+          await _loadStats(_userId!);
+        }
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Hoş Geldin Mesajı - Gradient Container
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade700, Colors.blue.shade400],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hoş Geldin! 👋',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _userName,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _userRole ?? 'User',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // İstatistikler Başlığı
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'İstatistiklerim',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    if (_userId != null) {
+                      await _loadStats(_userId!);
+                    }
+                  },
+                  icon: const Icon(Icons.refresh, size: 20),
+                  label: const Text('Yenile'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // İstatistik Kartları (2x2 Grid)
+            _isLoading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _buildStatCard(
+                        icon: Icons.book,
+                        title: 'Toplam Kitap',
+                        value: '${_stats?['totalBooks'] ?? 0}',
+                        color: Colors.blue,
+                        onTap: () {
+                          setState(() => _currentIndex = 1);
+                        },
+                      ),
+                      _buildStatCard(
+                        icon: Icons.library_books,
+                        title: 'Kiralık Kitaplarım',
+                        value: '${_stats?['myRentals'] ?? 0}',
+                        color: Colors.orange,
+                        onTap: () {
+                          setState(() => _currentIndex = 3);
+                        },
+                      ),
+                      _buildStatCard(
+                        icon: Icons.event_seat,
+                        title: 'Aktif Rezervasyonlarım',
+                        value: '${_stats?['myReservations'] ?? 0}',
+                        color: Colors.green,
+                        onTap: () {
+                          setState(() => _currentIndex = 2);
+                        },
+                      ),
+                      _buildStatCard(
+                        icon: Icons.person,
+                        title: 'Profil Bilgilerim',
+                        value: _userName.split(' ')[0],
+                        color: Colors.purple,
+                        onTap: () {
+                          setState(() => _currentIndex = 3);
+                        },
+                      ),
+                    ],
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.7), color],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 32, color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              textAlign: TextAlign.start,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _getScreen(int index) {
+    switch (index) {
+      case 0:
+        return _buildHomeScreen();
+      case 1:
+        return const BookScreen();
+      case 2:
+        return const SeatScreen();
+      case 3:
+        return ProfileScreen(userId: _userId ?? 0);
+      default:
+        return _buildHomeScreen();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header Section
-            _buildHeader(),
-            
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // İstatistik Kartları
-                      _buildStatisticsSection(),
-                      const SizedBox(height: 24),
-                      
-                      // Ana Menü Kartları
-                      _buildMainMenuCards(context),
-                      const SizedBox(height: 24),
-                      
-                      // Hızlı Erişim Menüsü
-                      _buildQuickAccessMenu(),
-                    ],
+      appBar: AppBar(
+        // Admin paneli butonu sol tarafta
+        leading: _userRole == 'Admin'
+            ? Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple.shade400, Colors.deepPurple.shade600],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ),
-              ),
-            ),
-            
-            // Alt Navigasyon
-            _buildBottomNavigation(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(26),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 25,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: Colors.blue),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Hoş Geldin,',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                Text(
-                  _userName ?? 'Yükleniyor...',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatisticsSection() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      children: [
-        StatisticCard(
-          icon: Icons.book,
-          title: 'Kiralık Kitaplar',
-          value: '${_dashboardData?.activeRentalCount ?? 0}',
-          color: _dashboardData != null && _dashboardData!.activeRentalCount >= 3 
-              ? Colors.red 
-              : Colors.blue,
-        ),
-        StatisticCard(
-          icon: Icons.chair,
-          title: 'Aktif Rezervasyon',
-          value: _dashboardData?.activeSeatNumber ?? 'Yok',
-          color: _dashboardData?.activeSeatNumber != null 
-              ? Colors.green 
-              : Colors.red,
-        ),
-        StatisticCard(
-          icon: Icons.auto_stories,
-          title: 'Okunan Kitaplar',
-          value: '${_dashboardData?.totalBooksRead ?? 0}',
-          color: Colors.orange,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMainMenuCards(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Card(
-          child: InkWell(
-            onTap: () => Navigator.pushNamed(context, '/books'),
-            child: const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Row(
-                children: [
-                  Icon(Icons.book, size: 48, color: Colors.blue),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Kitap Kiralama',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Kitap ara, kirala veya iade et',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                  Icon(Icons.arrow_forward_ios),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: InkWell(
-            onTap: () => Navigator.pushNamed(context, '/seats'),
-            child: const Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Row(
-                children: [
-                  Icon(Icons.chair, size: 48, color: Colors.green),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Oturma Yeri Kiralama',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Çalışma alanı rezerve et',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.arrow_forward_ios),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickAccessMenu() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Hızlı Erişim',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildQuickAccessCard(
-                'Son Okunan',
-                'Sefiller',
-                Icons.book_online,
-                Colors.blue,
-              ),
-              _buildQuickAccessCard(
-                'İade Tarihi',
-                '3 gün kaldı',
-                Icons.timer,
-                Colors.orange,
-              ),
-              _buildQuickAccessCard(
-                'Favori Kitaplar',
-                '12 kitap',
-                Icons.favorite,
-                Colors.red,
-              ),
-              _buildQuickAccessCard(
-                'Rezervasyonlar',
-                'Aktif: 1',
-                Icons.calendar_today,
-                Colors.green,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickAccessCard(String title, String subtitle, IconData icon, Color color) {
-    return Card(
-      margin: const EdgeInsets.only(right: 16),
-      child: Container(
-        width: 160,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-          ],
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/admin');
+                  },
+                  tooltip: 'Admin Paneli',
+                ),
+              )
+            : null,
+        title: Text(
+          _currentIndex == 0
+              ? 'Ana Sayfa'
+              : _currentIndex == 1
+                  ? 'Kitaplar'
+                  : _currentIndex == 2
+                      ? 'Oturma Yerleri'
+                      : 'Profilim',
         ),
       ),
-    );
-  }
-
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(26),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: 0,
+      body: _getScreen(_currentIndex),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Ana Sayfa',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Takvim',
+            icon: Icon(Icons.book),
+            label: 'Kitaplar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_seat),
+            label: 'Oturma Yerleri',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
-            label: 'Profil',
+            label: 'Profilim',
           ),
         ],
       ),

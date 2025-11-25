@@ -9,6 +9,7 @@
       "dependencies": [
         "flutter",
         "http",
+        "intl",
         "provider",
         "shared_preferences"
       ],
@@ -40,6 +41,15 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "intl",
+      "version": "0.19.0",
+      "dependencies": [
+        "clock",
+        "meta",
+        "path"
       ]
     },
     {

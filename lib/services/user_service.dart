@@ -15,6 +15,18 @@ class UserService {
       throw Exception('Dashboard verileri yüklenemedi');
     }
   }
+
+  Future<Map<String, dynamic>> getUserStats(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/Admin/users/$userId/stats'),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Kullanıcı istatistikleri yüklenemedi');
+    }
+  }
 }
 
 class UserDashboardData {
